@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'; // Add useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import type { FormEvent } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -19,9 +19,9 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
   const [outgoings, setOutgoings] = useState<Transaction[]>([]);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<'income' | 'outgoing'>('income');
-  const [error, setError] = useState<string | null>(null); // Ensure setError is defined for error handling
+  const [error, setError] = useState<string | null>(null);
   const [loadingIncomes, setLoadingIncomes] = useState(false);
   const [loadingOutgoings, setLoadingOutgoings] = useState(false);
 
@@ -42,7 +42,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
       setError('Failed to load incomes. Please try again.');
     }
     setLoadingIncomes(false);
-  }, [profileId, apiBaseUrl]); // Add dependencies for useCallback
+  }, [profileId, apiBaseUrl]);
 
   const fetchOutgoings = useCallback(async () => {
     setLoadingOutgoings(true);
@@ -59,14 +59,14 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
       setError('Failed to load outgoings. Please try again.');
     }
     setLoadingOutgoings(false);
-  }, [profileId, apiBaseUrl]); // Add dependencies for useCallback
+  }, [profileId, apiBaseUrl]);
 
   useEffect(() => {
     if (profileId) {
       fetchIncomes();
       fetchOutgoings();
     }
-  }, [profileId, fetchIncomes, fetchOutgoings]); // Add fetchIncomes and fetchOutgoings to dependencies
+  }, [profileId, fetchIncomes, fetchOutgoings]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -80,8 +80,8 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
     const numericAmount = parseFloat(amount);
 
     if (isNaN(numericAmount) || numericAmount <= 0) {
-        setError('Please enter a valid positive amount.');
-        return;
+      setError('Please enter a valid positive amount.');
+      return;
     }
 
     try {
@@ -98,22 +98,20 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      // Clear form and refresh data
       setDescription('');
       setAmount('');
-      // setDate(new Date().toISOString().split('T')[0]); // Optionally reset date
       if (type === 'income') {
         fetchIncomes();
       } else {
         fetchOutgoings();
       }
-    } catch (err: unknown) { 
+    } catch (err: unknown) {
       console.error('Error in Dashboard handleSubmit:', err);
       let errorMessage = 'An unexpected error occurred.';
       if (err instanceof Error) {
         errorMessage = err.message;
       }
-      setError(errorMessage); // Use setError to display the error in the UI
+      setError(errorMessage);
     }
   };
 
@@ -130,7 +128,6 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      // Refresh the appropriate list
       if (transactionType === 'income') {
         fetchIncomes();
       } else {
@@ -150,7 +147,6 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
   const totalOutgoing = outgoings.reduce((sum, item) => sum + item.amount, 0);
   const balance = totalIncome - totalOutgoing;
 
-  // Helper to aggregate by month
   const aggregateByMonth = (transactions: Transaction[]) => {
     const result: { [month: string]: number } = {};
     transactions.forEach(({ amount, date }) => {
@@ -159,6 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
     });
     return result;
   };
+
   const incomeByMonth = aggregateByMonth(incomes);
   const expenseByMonth = aggregateByMonth(outgoings);
   const months = Array.from(new Set([...Object.keys(incomeByMonth), ...Object.keys(expenseByMonth)])).sort();
@@ -170,8 +167,6 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
 
   return (
     <div className="dashboard-container">
-      
-      
       {error && <div className="error-message">{error}</div>}
 
       <div className="form-card">
@@ -230,12 +225,12 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
         </div>
         <div className="stat-card">
           <h4>Total Expenses</h4>
-                  <div className="stat-value expense">€{totalOutgoing.toFixed(2)}</div>
+          <div className="stat-value expense">€{totalOutgoing.toFixed(2)}</div>
         </div>
         <div className="stat-card">
           <h4>Balance</h4>
           <div className={`stat-value balance ${balance < 0 ? 'negative' : ''}`}>
-                      €{balance.toFixed(2)}
+            €{balance.toFixed(2)}
           </div>
         </div>
       </div>
@@ -254,11 +249,11 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
                   <div className="transaction-info">
                     <div className="transaction-description">{item.description}</div>
                     <div className="transaction-details">
-                              €{item.amount.toFixed(2)} • {new Date(item.date).toLocaleDateString()}
+                      €{item.amount.toFixed(2)} • {new Date(item.date).toLocaleDateString()}
                     </div>
                   </div>
-                  <button 
-                    onClick={() => handleDelete(item.id, 'income')} 
+                  <button
+                    onClick={() => handleDelete(item.id, 'income')}
                     className="delete-btn"
                     title="Delete transaction"
                   >
@@ -269,7 +264,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
             </ul>
           )}
         </div>
-        
+
         <div className="transaction-card">
           <h3>Recent Expenses</h3>
           {loadingOutgoings ? (
@@ -283,11 +278,11 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
                   <div className="transaction-info">
                     <div className="transaction-description">{item.description}</div>
                     <div className="transaction-details">
-                              €{item.amount.toFixed(2)} • {new Date(item.date).toLocaleDateString()}
+                      €{item.amount.toFixed(2)} • {new Date(item.date).toLocaleDateString()}
                     </div>
                   </div>
-                  <button 
-                    onClick={() => handleDelete(item.id, 'outgoing')} 
+                  <button
+                    onClick={() => handleDelete(item.id, 'outgoing')}
                     className="delete-btn"
                     title="Delete transaction"
                   >
@@ -299,19 +294,21 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
           )}
         </div>
       </div>
-      <div style={{ width: '100%', height: 300, marginTop: 30, marginBottom: 30 }}>
-        <ResponsiveContainer>
+
+      <div className="chart-container">
+        <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="1 1" />
             <XAxis dataKey="month" />
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey="Income" fill="#059669" />
-            <Bar dataKey="Expense" fill="#d97706" />
+            <Bar dataKey="Income" fill="#10b981" />
+            <Bar dataKey="Expense" fill="#f59e0b" />
           </BarChart>
         </ResponsiveContainer>
       </div>
+
       <footer className="footer">
         Finance Dashboard &copy; {new Date().getFullYear()} | All rights reserved.
       </footer>
