@@ -64,7 +64,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLoginSuccess }) => {
       {error && <div className="error-message">{error}</div>}
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         {!isLogin && (
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
+          <div className="form-group\" style={{ marginBottom: '1rem' }}>
             <label htmlFor="name">Name:</label>
             <input
               type="text"
