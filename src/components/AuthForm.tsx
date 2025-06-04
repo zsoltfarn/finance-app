@@ -59,12 +59,12 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="form-card" style={{ maxWidth: '400px', margin: '50px auto' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>{isLogin ? 'Login' : 'Register'}</h2>
+    <div className="form-card auth-container">
+      <h2 className="auth-title">{isLogin ? 'Login' : 'Register'}</h2>
       {error && <div className="error-message">{error}</div>}
-      <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+      <form onSubmit={handleSubmit} className="auth-form">
         {!isLogin && (
-          <div className="form-group\" style={{ marginBottom: '1rem' }}>
+          <div className="form-group auth-form-group">
             <label htmlFor="name">Name:</label>
             <input
               type="text"
@@ -75,7 +75,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLoginSuccess }) => {
             />
           </div>
         )}
-        <div className="form-group" style={{ marginBottom: '1rem' }}>
+        <div className="form-group auth-form-group">
           <label htmlFor="username">Username:</label>
           <input
             type="text"
@@ -85,7 +85,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLoginSuccess }) => {
             required
           />
         </div>
-        <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+        <div className="form-group auth-form-group">
           <label htmlFor="password">Password:</label>
           <input
             type="password"
@@ -95,15 +95,11 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLoginSuccess }) => {
             required
           />
         </div>
-        <button type="submit" style={{ width: '100%', marginBottom: '1rem' }}>
+        <button type="submit" className="auth-submit-btn">
           {isLogin ? 'Login' : 'Register'}
         </button>
       </form>
-      <p style={{ 
-        textAlign: 'center', 
-        marginTop: '1rem',
-        color: message && message.includes('successful') ? '#10b981' : '#ef4444'
-      }}>
+      <p className={`auth-message ${message?.includes('successful') ? 'success' : 'error'}`}>
         {message}
       </p>
       <button
@@ -112,13 +108,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLoginSuccess }) => {
           setError(null);
           setMessage(null);
         }}
-        style={{
-          width: '100%',
-          background: 'transparent',
-          color: '#6366f1',
-          boxShadow: 'none',
-          border: '2px solid #6366f1',
-        }}
+        className="auth-switch-btn"
       >
         {isLogin ? 'Need an account? Register' : 'Already have an account? Login'}
       </button>
