@@ -263,10 +263,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin: 2rem;
   padding: 2rem;
-  max-width: 100%;
-  width: 100%;
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   border-radius: 24px;
