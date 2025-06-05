@@ -27,69 +27,53 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
 
   const apiBaseUrl = 'http://localhost:3001/api';
 
-  const fetchIncomes = useCallback(async () => {
-    setLoadingIncomes(true);
+  const fetchTransactions = useCallback(async (type: 'incomes' | 'outgoings') => {
+    const setLoading = type === 'incomes' ? setLoadingIncomes : setLoadingOutgoings;
+    const setData = type === 'incomes' ? setIncomes : setOutgoings;
+    
+    setLoading(true);
     setError(null);
+    
     try {
-      const response = await fetch(`${apiBaseUrl}/incomes/${profileId}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const response = await fetch(`${apiBaseUrl}/${type}/${profileId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      setIncomes(data);
+      setData(data);
     } catch (err) {
-      console.error('Failed to fetch incomes:', err);
-      setError('Failed to load incomes. Please try again.');
+      console.error(`Failed to fetch ${type}:`, err);
+      setError(`Failed to load ${type}. Please try again.`);
+    } finally {
+      setLoading(false);
     }
-    setLoadingIncomes(false);
-  }, [profileId, apiBaseUrl]);
-
-  const fetchOutgoings = useCallback(async () => {
-    setLoadingOutgoings(true);
-    setError(null);
-    try {
-      const response = await fetch(`${apiBaseUrl}/outgoings/${profileId}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setOutgoings(data);
-    } catch (err) {
-      console.error('Failed to fetch outgoings:', err);
-      setError('Failed to load outgoings. Please try again.');
-    }
-    setLoadingOutgoings(false);
   }, [profileId, apiBaseUrl]);
 
   useEffect(() => {
     if (profileId) {
-      fetchIncomes();
-      fetchOutgoings();
+      fetchTransactions('incomes');
+      fetchTransactions('outgoings');
     }
-  }, [profileId, fetchIncomes, fetchOutgoings]);
+  }, [profileId, fetchTransactions]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+
     if (!description || !amount || !date) {
       setError('All fields are required.');
       return;
     }
 
-    const endpoint = type === 'income' ? 'incomes' : 'outgoings';
     const numericAmount = parseFloat(amount);
-
     if (isNaN(numericAmount) || numericAmount <= 0) {
       setError('Please enter a valid positive amount.');
       return;
     }
 
+    const endpoint = type === 'income' ? 'incomes' : 'outgoings';
     try {
       const response = await fetch(`${apiBaseUrl}/${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile_id: profileId, description, amount: numericAmount, date }),
       });
 
@@ -100,24 +84,17 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
 
       setDescription('');
       setAmount('');
-      if (type === 'income') {
-        fetchIncomes();
-      } else {
-        fetchOutgoings();
-      }
-    } catch (err: unknown) {
-      console.error('Error in Dashboard handleSubmit:', err);
-      let errorMessage = 'An unexpected error occurred.';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
+      fetchTransactions(endpoint);
+    } catch (err) {
+      console.error('Transaction submission error:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     }
   };
 
   const handleDelete = async (transactionId: number, transactionType: 'income' | 'outgoing') => {
     setError(null);
-    const endpoint = transactionType === 'income' ? 'incomes' : 'outgoings';
+    const endpoint = `${transactionType}s`;
+    
     try {
       const response = await fetch(`${apiBaseUrl}/${endpoint}/${transactionId}`, {
         method: 'DELETE',
@@ -128,18 +105,10 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      if (transactionType === 'income') {
-        fetchIncomes();
-      } else {
-        fetchOutgoings();
-      }
-    } catch (err: unknown) {
+      fetchTransactions(endpoint);
+    } catch (err) {
       console.error(`Error deleting ${transactionType}:`, err);
-      let errorMessage = `Failed to delete ${transactionType}.`;
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : `Failed to delete ${transactionType}.`);
     }
   };
 
@@ -147,23 +116,60 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
   const totalOutgoing = outgoings.reduce((sum, item) => sum + item.amount, 0);
   const balance = totalIncome - totalOutgoing;
 
-  const aggregateByMonth = (transactions: Transaction[]) => {
-    const result: { [month: string]: number } = {};
-    transactions.forEach(({ amount, date }) => {
-      const month = new Date(date).toLocaleString('default', { month: 'short', year: 'numeric' });
-      result[month] = (result[month] || 0) + amount;
+  const getChartData = () => {
+    const last6Months = Array.from({ length: 6 }, (_, i) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+    }).reverse();
+
+    const monthlyData = last6Months.map(month => {
+      const monthIncome = incomes
+        .filter(t => {
+          const transDate = new Date(t.date);
+          return transDate.toLocaleString('default', { month: 'short', year: 'numeric' }) === month;
+        })
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const monthOutgoing = outgoings
+        .filter(t => {
+          const transDate = new Date(t.date);
+          return transDate.toLocaleString('default', { month: 'short', year: 'numeric' }) === month;
+        })
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      return {
+        month,
+        Income: monthIncome,
+        Expense: monthOutgoing,
+        Balance: monthIncome - monthOutgoing
+      };
     });
-    return result;
+
+    return monthlyData;
   };
 
-  const incomeByMonth = aggregateByMonth(incomes);
-  const expenseByMonth = aggregateByMonth(outgoings);
-  const months = Array.from(new Set([...Object.keys(incomeByMonth), ...Object.keys(expenseByMonth)])).sort();
-  const chartData = months.map(month => ({
-    month,
-    Income: incomeByMonth[month] || 0,
-    Expense: expenseByMonth[month] || 0
-  }));
+  const renderTransactionList = (transactions: Transaction[], transactionType: 'income' | 'outgoing') => (
+    <ul className="transaction-list">
+      {transactions.map((item) => (
+        <li key={item.id} className="transaction-item">
+          <div className="transaction-info">
+            <div className="transaction-description">{item.description}</div>
+            <div className="transaction-details">
+              €{item.amount.toFixed(2)} • {new Date(item.date).toLocaleDateString()}
+            </div>
+          </div>
+          <button
+            onClick={() => handleDelete(item.id, transactionType)}
+            className="delete-btn"
+            title="Delete transaction"
+          >
+            ×
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className="dashboard-container">
@@ -175,7 +181,11 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
           <div className="form-grid">
             <div className="form-group">
               <label htmlFor="type">Type</label>
-              <select id="type" value={type} onChange={(e) => setType(e.target.value as 'income' | 'outgoing')}>
+              <select 
+                id="type" 
+                value={type} 
+                onChange={(e) => setType(e.target.value as 'income' | 'outgoing')}
+              >
                 <option value="income">Income</option>
                 <option value="outgoing">Expense</option>
               </select>
@@ -201,6 +211,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
                 placeholder="0.00"
                 required
                 step="0.01"
+                min="0"
               />
             </div>
             <div className="form-group">
@@ -211,6 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
+                max={new Date().toISOString().split('T')[0]}
               />
             </div>
           </div>
@@ -235,6 +247,58 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
         </div>
       </div>
 
+      <div className="chart-container">
+        <h3>Financial Overview - Last 6 Months</h3>
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <XAxis 
+              dataKey="month" 
+              tick={{ fill: '#64748b' }}
+              axisLine={{ stroke: '#cbd5e1' }}
+            />
+            <YAxis 
+              tick={{ fill: '#64748b' }}
+              axisLine={{ stroke: '#cbd5e1' }}
+              tickFormatter={(value) => `€${value}`}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                background: 'rgba(255, 255, 255, 0.9)',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }}
+              formatter={(value: number) => [`€${value.toFixed(2)}`, '']}
+            />
+            <Legend 
+              wrapperStyle={{ 
+                paddingTop: '20px',
+                fontSize: '14px'
+              }}
+            />
+            <Bar 
+              dataKey="Income" 
+              fill="#10b981" 
+              radius={[4, 4, 0, 0]}
+              maxBarSize={50}
+            />
+            <Bar 
+              dataKey="Expense" 
+              fill="#f59e0b" 
+              radius={[4, 4, 0, 0]}
+              maxBarSize={50}
+            />
+            <Bar 
+              dataKey="Balance" 
+              fill="#3b82f6" 
+              radius={[4, 4, 0, 0]}
+              maxBarSize={50}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
       <div className="transactions-grid">
         <div className="transaction-card">
           <h3>Recent Income</h3>
@@ -243,25 +307,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
           ) : incomes.length === 0 ? (
             <div className="empty-state">No income records yet</div>
           ) : (
-            <ul className="transaction-list">
-              {incomes.map((item) => (
-                <li key={item.id} className="transaction-item">
-                  <div className="transaction-info">
-                    <div className="transaction-description">{item.description}</div>
-                    <div className="transaction-details">
-                      €{item.amount.toFixed(2)} • {new Date(item.date).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(item.id, 'income')}
-                    className="delete-btn"
-                    title="Delete transaction"
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
+            renderTransactionList(incomes, 'income')
           )}
         </div>
 
@@ -272,41 +318,9 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
           ) : outgoings.length === 0 ? (
             <div className="empty-state">No expense records yet</div>
           ) : (
-            <ul className="transaction-list">
-              {outgoings.map((item) => (
-                <li key={item.id} className="transaction-item">
-                  <div className="transaction-info">
-                    <div className="transaction-description">{item.description}</div>
-                    <div className="transaction-details">
-                      €{item.amount.toFixed(2)} • {new Date(item.date).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(item.id, 'outgoing')}
-                    className="delete-btn"
-                    title="Delete transaction"
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
+            renderTransactionList(outgoings, 'outgoing')
           )}
         </div>
-      </div>
-
-      <div className="chart-container">
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="1 1" />
-            <XAxis dataKey="month" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="Income" fill="#10b981" />
-            <Bar dataKey="Expense" fill="#f59e0b" />
-          </BarChart>
-        </ResponsiveContainer>
       </div>
 
       <footer className="footer">
