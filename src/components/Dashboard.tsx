@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { FormEvent } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Transaction {
   id: number;
@@ -117,36 +117,31 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
   const balance = totalIncome - totalOutgoing;
 
   const getChartData = () => {
-    const last6Months = Array.from({ length: 6 }, (_, i) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      return date.toLocaleString('default', { month: 'short', year: 'numeric' });
-    }).reverse();
+    // Combine all transactions and sort by date
+    const allTransactions = [
+      ...incomes.map(t => ({ ...t, type: 'income' })),
+      ...outgoings.map(t => ({ ...t, type: 'outgoing' }))
+    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const monthlyData = last6Months.map(month => {
-      const monthIncome = incomes
-        .filter(t => {
-          const transDate = new Date(t.date);
-          return transDate.toLocaleString('default', { month: 'short', year: 'numeric' }) === month;
-        })
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      const monthOutgoing = outgoings
-        .filter(t => {
-          const transDate = new Date(t.date);
-          return transDate.toLocaleString('default', { month: 'short', year: 'numeric' }) === month;
-        })
-        .reduce((sum, t) => sum + t.amount, 0);
-
+    let runningBalance = 0;
+    const balanceHistory = allTransactions.map(transaction => {
+      runningBalance += transaction.type === 'income' ? transaction.amount : -transaction.amount;
       return {
-        month,
-        Income: monthIncome,
-        Expense: monthOutgoing,
-        Balance: monthIncome - monthOutgoing
+        date: new Date(transaction.date).toLocaleDateString(),
+        balance: runningBalance
       };
     });
 
-    return monthlyData;
+    // Add today's date if it's not the last point
+    const today = new Date().toLocaleDateString();
+    if (balanceHistory.length === 0 || balanceHistory[balanceHistory.length - 1].date !== today) {
+      balanceHistory.push({
+        date: today,
+        balance: runningBalance
+      });
+    }
+
+    return balanceHistory;
   };
 
   const renderTransactionList = (transactions: Transaction[], transactionType: 'income' | 'outgoing') => (
@@ -248,12 +243,12 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
       </div>
 
       <div className="chart-container">
-        <h3>Financial Overview - Last 6 Months</h3>
+        <h3>Running Balance</h3>
         <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <LineChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis 
-              dataKey="month" 
+              dataKey="date" 
               tick={{ fill: '#64748b' }}
               axisLine={{ stroke: '#cbd5e1' }}
             />
@@ -269,33 +264,18 @@ const Dashboard: React.FC<DashboardProps> = ({ profileId }) => {
                 borderRadius: '8px',
                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value: number) => [`€${value.toFixed(2)}`, '']}
+              formatter={(value: number) => [`€${value.toFixed(2)}`, 'Balance']}
+              labelFormatter={(label) => `Date: ${label}`}
             />
-            <Legend 
-              wrapperStyle={{ 
-                paddingTop: '20px',
-                fontSize: '14px'
-              }}
+            <Line 
+              type="monotone"
+              dataKey="balance"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dot={{ fill: '#3b82f6', r: 4 }}
+              activeDot={{ r: 6, fill: '#2563eb' }}
             />
-            <Bar 
-              dataKey="Income" 
-              fill="#10b981" 
-              radius={[4, 4, 0, 0]}
-              maxBarSize={50}
-            />
-            <Bar 
-              dataKey="Expense" 
-              fill="#f59e0b" 
-              radius={[4, 4, 0, 0]}
-              maxBarSize={50}
-            />
-            <Bar 
-              dataKey="Balance" 
-              fill="#3b82f6" 
-              radius={[4, 4, 0, 0]}
-              maxBarSize={50}
-            />
-          </BarChart>
+          </LineChart>
         </ResponsiveContainer>
       </div>
 
